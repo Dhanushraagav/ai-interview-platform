@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - AI Interview Platform</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="glass-card" style="max-width: 500px; width: 100%;">
+            <h2>Welcome Back</h2>
+            <p class="text-center" style="margin-bottom: 30px; opacity: 0.8;">
+                Login to continue your interview journey
+            </p>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Enter your username"
+                        required
+                        autofocus
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Enter your password"
+                        required
+                    >
+                </div>
+                
+                <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">
+                    Login
+                </button>
+            </form>
+            
+            <div class="text-center mt-20">
+                <p style="opacity: 0.8;">
+                    Don't have an account? 
+                    <a href="/signup.html" style="font-weight: 600;">Sign up here</a>
+                </p>
+            </div>
+            
+            <div class="text-center mt-20">
+                <a href="/" style="opacity: 0.7;">← Back to Home</a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/auth.js"></script>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showAlert('Please enter both username and password', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                await login(username, password);
+                showAlert('Login successful! Redirecting...', 'success');
+                
+                setTimeout(() => {
+                    window.location.href = '/interview.html';
+                }, 1000);
+            } catch (error) {
+                showAlert(error.message || 'Login failed. Please check your credentials.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        });
+        
+        // Redirect if already logged in
+        if (isAuthenticated()) {
+            window.location.href = '/interview.html';
+        }
+    </script>
+</body>
+</html>
+

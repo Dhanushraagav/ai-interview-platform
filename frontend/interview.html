@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AI Interview Platform</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* Interview-specific styles */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 20px;
+        }
+        
+        .header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logout-btn {
+            padding: 10px 20px;
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+            color: #ffcdd2;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(244, 67, 54, 0.5);
+        }
+        
+        /* Dashboard View */
+        #dashboard-view {
+            max-width: 1000px;
+            width: 100%;
+        }
+        
+        .topics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .topic-card {
+            text-align: center;
+            padding: 40px 30px;
+            transition: transform 0.3s ease;
+        }
+        
+        .topic-card:hover {
+            transform: translateY(-10px) scale(1.02);
+        }
+        
+        .topic-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+        
+        .topic-card h3 {
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        /* Interview View */
+        #interview-view {
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        .interview-header {
+            margin-bottom: 20px;
+        }
+        
+        .progress-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        #question-counter {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: var(--text-secondary);
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-gradient);
+            transition: width 0.3s ease;
+            width: 0%;
+            border-radius: 5px;
+        }
+        
+        .chat-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .chat-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .message {
+            padding: 15px 20px;
+            border-radius: 15px;
+            max-width: 80%;
+            word-wrap: break-word;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .message-question {
+            background: var(--primary-gradient);
+            color: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message-answer {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message-feedback {
+            background: rgba(255, 193, 7, 0.3);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            color: #fff9c4;
+            align-self: flex-start;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .message-score {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #c8e6c9;
+            align-self: flex-start;
+            border-left: 4px solid #4caf50;
+            font-weight: bold;
+        }
+        
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        #answer-input {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        /* Report View */
+        #report-view {
+            max-width: 1000px;
+            width: 100%;
+        }
+        
+        .score-card {
+            text-align: center;
+            padding: 40px;
+            background: var(--primary-gradient);
+            border-radius: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .score-circle {
+            font-size: 5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .score-label {
+            font-size: 0.4em;
+            opacity: 0.9;
+        }
+        
+        .topic-label {
+            font-size: 1.3em;
+            opacity: 0.9;
+            margin-top: 15px;
+        }
+        
+        .questions-summary {
+            margin-top: 30px;
+        }
+        
+        .questions-summary h3 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .question-item {
+            margin-bottom: 25px;
+            padding: 25px;
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .question-header h4 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+        
+        .score-badge {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .question-text {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        .answer-section,
+        .feedback-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        
+        .answer-section strong,
+        .feedback-section strong {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+        }
+        
+        .answer-text {
+            font-style: italic;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .feedback-text {
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .topics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            .score-circle {
+                font-size: 3em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h2>🤖 AI Interview Platform</h2>
+        <div class="user-info">
+            <span>Welcome, <strong id="user-display">User</strong></span>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="glass-card">
+            <h2 class="text-center">Select Interview Topic</h2>
+            <p class="text-center" style="margin-bottom: 30px; opacity: 0.8;">
+                Choose a topic to start your AI-powered interview
+            </p>
+            <div id="topics-container" class="topics-grid">
+                <!-- Topics will be loaded dynamically -->
+            </div>
+        </div>
+        
+        <!-- Interview View -->
+        <div id="interview-view" class="glass-card hidden">
+            <div class="interview-header">
+                <div class="progress-info">
+                    <span id="question-counter">Question 1 of 5</span>
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-container">
+                <div id="chat-messages" class="chat-messages"></div>
+            </div>
+            
+            <div class="input-container">
+                <textarea 
+                    id="answer-input" 
+                    class="form-group"
+                    placeholder="Type your answer here... (Ctrl+Enter to submit)"
+                    rows="4"
+                    disabled
+                ></textarea>
+                <button id="submit-btn" class="btn" onclick="submitAnswer()" disabled>
+                    Submit Answer
+                </button>
+            </div>
+        </div>
+        
+        <!-- Report View -->
+        <div id="report-view" class="glass-card hidden">
+            <h2 class="text-center">Interview Report</h2>
+            
+            <div class="score-card">
+                <div class="score-circle">
+                    <span id="final-score">0</span>
+                    <span class="score-label">/ 10</span>
+                </div>
+                <p class="topic-label" id="report-topic">Topic: Python</p>
+            </div>
+            
+            <div class="questions-summary">
+                <h3>Question-wise Performance</h3>
+                <div id="questions-list"></div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn" onclick="resetInterview()">Start New Interview</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/auth.js"></script>
+    <script src="/static/interview.js"></script>
+</body>
+</html>
+
