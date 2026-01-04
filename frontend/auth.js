@@ -3,7 +3,7 @@
  */
 
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = "https://ai-interview-platform-50c3.onrender.com";
 
 // Token management
 function getToken() {
