@@ -4,91 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - AI Interview Platform</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <div class="glass-card" style="max-width: 500px; width: 100%;">
-            <h2>Welcome Back</h2>
-            <p class="text-center" style="margin-bottom: 30px; opacity: 0.8;">
-                Login to continue your interview journey
-            </p>
-            
-            <form id="login-form">
+        <div class="card">
+            <h1>Login</h1>
+            <p>Welcome back! Please login to continue.</p>
+            <form id="loginForm">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input 
-                        type="text" 
-                        id="username" 
-                        name="username" 
-                        placeholder="Enter your username"
-                        required
-                        autofocus
-                    >
+                    <input type="text" id="username" name="username" required autocomplete="username">
                 </div>
-                
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        placeholder="Enter your password"
-                        required
-                    >
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
                 </div>
-                
-                <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">
-                    Login
-                </button>
+                <button type="submit" class="btn btn-primary">Login</button>
             </form>
-            
-            <div class="text-center mt-20">
-                <p style="opacity: 0.8;">
-                    Don't have an account? 
-                    <a href="/signup.html" style="font-weight: 600;">Sign up here</a>
-                </p>
-            </div>
-            
-            <div class="text-center mt-20">
-                <a href="/" style="opacity: 0.7;">← Back to Home</a>
-            </div>
+            <p style="margin-top: 20px; text-align: center;">
+                Don't have an account? <a href="signup.html" class="btn-link">Sign up</a>
+            </p>
+            <p style="margin-top: 10px; text-align: center;">
+                <a href="index.html" class="btn-link">Back to Home</a>
+            </p>
         </div>
     </div>
-    
-    <script src="/static/auth.js"></script>
+
+    <script src="auth.js"></script>
     <script>
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const username = document.getElementById('username').value.trim();
+            const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            if (!username || !password) {
-                showAlert('Please enter both username and password', 'error');
-                return;
-            }
+            // Remove any existing error messages
+            const existingError = document.querySelector('.error-message');
+            if (existingError) existingError.remove();
             
-            showLoading(true);
+            // Show loading state
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.textContent = 'Logging in...';
+            submitButton.disabled = true;
             
-            try {
-                await login(username, password);
-                showAlert('Login successful! Redirecting...', 'success');
+            const result = await login(username, password);
+            
+            if (result.success) {
+                // Redirect to interview page
+                window.location.href = 'interview.html';
+            } else {
+                // Show error message
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = result.error || 'Login failed. Please try again.';
+                e.target.insertBefore(errorDiv, e.target.firstChild);
                 
-                setTimeout(() => {
-                    window.location.href = '/interview.html';
-                }, 1000);
-            } catch (error) {
-                showAlert(error.message || 'Login failed. Please check your credentials.', 'error');
-            } finally {
-                showLoading(false);
+                submitButton.textContent = originalText;
+                submitButton.disabled = false;
             }
         });
-        
-        // Redirect if already logged in
-        if (isAuthenticated()) {
-            window.location.href = '/interview.html';
-        }
     </script>
 </body>
 </html>

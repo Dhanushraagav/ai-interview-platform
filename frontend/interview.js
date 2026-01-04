@@ -1,341 +1,205 @@
-/**
- * Interview functionality
- */
+// API configuration - easy to change for different environments
+const API_BASE_URL = 'http://localhost:8000';
 
-let currentSessionId = null;
-let currentQuestionNumber = 1;
-let totalQuestions = 5;
-let currentTopic = null;
-
-// DOM Elements (will be set when page loads)
-let chatMessages, answerInput, submitBtn, questionCounter, progressFill;
-let dashboardView, interviewView, reportView;
-
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    chatMessages = document.getElementById('chat-messages');
-    answerInput = document.getElementById('answer-input');
-    submitBtn = document.getElementById('submit-btn');
-    questionCounter = document.getElementById('question-counter');
-    progressFill = document.getElementById('progress-fill');
-    
-    dashboardView = document.getElementById('dashboard-view');
-    interviewView = document.getElementById('interview-view');
-    reportView = document.getElementById('report-view');
-    
-    // Load available topics
-    loadTopics();
-    
-    // Check authentication
-    if (!requireAuth()) {
-        return;
-    }
-    
-    // Load user info
-    const user = getUser();
-    if (user) {
-        const userDisplay = document.getElementById('user-display');
-        if (userDisplay) {
-            userDisplay.textContent = user.username;
-        }
-    }
-});
-
-// Show different views
-function showView(viewName) {
-    [dashboardView, interviewView, reportView].forEach(view => {
-        if (view) view.classList.add('hidden');
-    });
-    
-    const view = document.getElementById(`${viewName}-view`);
-    if (view) view.classList.remove('hidden');
+// Get auth headers with token
+function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+    };
 }
 
-// Load available topics
+// Load topics from backend
 async function loadTopics() {
     try {
-        const response = await apiRequest('/topics');
-        const data = await response.json();
-        
-        const topicsContainer = document.getElementById('topics-container');
-        if (topicsContainer) {
-            topicsContainer.innerHTML = '';
-            
-            data.topics.forEach(topic => {
-                const topicCard = document.createElement('div');
-                topicCard.className = 'topic-card glass-card';
-                topicCard.innerHTML = `
-                    <div class="topic-icon">${getTopicIcon(topic)}</div>
-                    <h3>${topic}</h3>
-                    <button class="btn" onclick="startInterview('${topic}')">Start Interview</button>
-                `;
-                topicsContainer.appendChild(topicCard);
-            });
-        }
-    } catch (error) {
-        console.error('Failed to load topics:', error);
-        showAlert('Failed to load topics. Please refresh the page.', 'error');
-    }
-}
-
-function getTopicIcon(topic) {
-    const icons = {
-        'Python': '🐍',
-        'DBMS': '🗄️',
-        'DSA': '📊',
-        'Java': '☕'
-    };
-    return icons[topic] || '📝';
-}
-
-// Start interview
-async function startInterview(topic) {
-    showLoading(true);
-    
-    try {
-        const response = await apiRequest(`/start-interview/${topic}`, {
-            method: 'POST'
+        const response = await fetch(`${API_BASE_URL}/topics`, {
+            headers: getAuthHeaders()
         });
-        
+
         if (!response.ok) {
-            throw new Error('Failed to start interview');
-        }
-        
-        const data = await response.json();
-        
-        currentSessionId = data.session_id;
-        currentQuestionNumber = 1;
-        totalQuestions = data.total_questions;
-        currentTopic = topic;
-        
-        // Clear chat
-        if (chatMessages) {
-            chatMessages.innerHTML = '';
-        }
-        
-        // Add first question
-        addMessage(data.question, 'question');
-        
-        // Enable input
-        if (answerInput) {
-            answerInput.disabled = false;
-            answerInput.focus();
-        }
-        if (submitBtn) {
-            submitBtn.disabled = false;
-        }
-        
-        // Update progress
-        updateProgress();
-        
-        // Show interview view
-        showView('interview');
-        
-    } catch (error) {
-        showAlert(error.message || 'Failed to start interview', 'error');
-        console.error(error);
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Submit answer
-async function submitAnswer() {
-    const answer = answerInput ? answerInput.value.trim() : '';
-    
-    if (!answer) {
-        showAlert('Please enter an answer', 'error');
-        return;
-    }
-    
-    if (!currentSessionId) {
-        showAlert('No active interview session', 'error');
-        return;
-    }
-    
-    // Disable input
-    if (answerInput) answerInput.disabled = true;
-    if (submitBtn) submitBtn.disabled = true;
-    showLoading(true);
-    
-    // Add user's answer to chat
-    addMessage(answer, 'answer');
-    
-    try {
-        const response = await apiRequest('/answer', {
-            method: 'POST',
-            body: JSON.stringify({
-                session_id: currentSessionId,
-                answer: answer
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to submit answer');
-        }
-        
-        const data = await response.json();
-        
-        // Add score and feedback
-        addMessage(`Score: ${data.score}/10`, 'score');
-        addMessage(`Feedback: ${data.feedback}`, 'feedback');
-        
-        // Clear input
-        if (answerInput) answerInput.value = '';
-        
-        if (data.is_complete) {
-            // Interview completed
-            setTimeout(() => {
-                showReport();
-            }, 2000);
-        } else {
-            // Show next question
-            currentQuestionNumber = data.question_number;
-            updateProgress();
-            
-            setTimeout(() => {
-                addMessage(data.next_question, 'question');
-                if (answerInput) {
-                    answerInput.disabled = false;
-                    answerInput.focus();
-                }
-                if (submitBtn) submitBtn.disabled = false;
-            }, 1000);
-        }
-    } catch (error) {
-        showAlert(error.message || 'Failed to submit answer', 'error');
-        console.error(error);
-        if (answerInput) answerInput.disabled = false;
-        if (submitBtn) submitBtn.disabled = false;
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Add message to chat
-function addMessage(text, type) {
-    if (!chatMessages) return;
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message message-${type}`;
-    messageDiv.textContent = text;
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// Update progress bar
-function updateProgress() {
-    if (!questionCounter || !progressFill) return;
-    
-    const percentage = (currentQuestionNumber / totalQuestions) * 100;
-    progressFill.style.width = `${percentage}%`;
-    questionCounter.textContent = `Question ${currentQuestionNumber} of ${totalQuestions}`;
-}
-
-// Show report
-async function showReport() {
-    showLoading(true);
-    
-    try {
-        const response = await apiRequest(`/interview/${currentSessionId}/report`);
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch report');
-        }
-        
-        const report = await response.json();
-        
-        // Update report view
-        const finalScoreEl = document.getElementById('final-score');
-        const reportTopicEl = document.getElementById('report-topic');
-        const questionsListEl = document.getElementById('questions-list');
-        
-        if (finalScoreEl) {
-            finalScoreEl.textContent = report.total_score;
-        }
-        
-        if (reportTopicEl) {
-            reportTopicEl.textContent = `Topic: ${report.topic}`;
-        }
-        
-        if (questionsListEl) {
-            questionsListEl.innerHTML = '';
-            
-            report.questions.forEach((q, index) => {
-                const questionItem = document.createElement('div');
-                questionItem.className = 'question-item glass-card';
-                questionItem.innerHTML = `
-                    <div class="question-header">
-                        <h4>Question ${q.question_number}</h4>
-                        <span class="score-badge">${q.score}/10</span>
-                    </div>
-                    <p class="question-text">${q.question}</p>
-                    <div class="answer-section">
-                        <strong>Your Answer:</strong>
-                        <p class="answer-text">${q.answer}</p>
-                    </div>
-                    <div class="feedback-section">
-                        <strong>Feedback:</strong>
-                        <p class="feedback-text">${q.feedback}</p>
-                    </div>
-                `;
-                questionsListEl.appendChild(questionItem);
-            });
-        }
-        
-        showView('report');
-        
-    } catch (error) {
-        showAlert(error.message || 'Failed to load report', 'error');
-        console.error(error);
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Reset and go back to dashboard
-function resetInterview() {
-    currentSessionId = null;
-    currentQuestionNumber = 1;
-    totalQuestions = 5;
-    currentTopic = null;
-    
-    if (chatMessages) chatMessages.innerHTML = '';
-    if (answerInput) {
-        answerInput.value = '';
-        answerInput.disabled = false;
-    }
-    if (submitBtn) submitBtn.disabled = false;
-    
-    updateProgress();
-    showView('dashboard');
-}
-
-// Logout
-function handleLogout() {
-    if (confirm('Are you sure you want to logout?')) {
-        logout();
-        window.location.href = '/login.html';
-    }
-}
-
-// Handle Enter key in answer input (set up after DOM is ready)
-document.addEventListener('DOMContentLoaded', () => {
-    const answerInputEl = document.getElementById('answer-input');
-    const submitBtnEl = document.getElementById('submit-btn');
-    
-    if (answerInputEl && submitBtnEl) {
-        answerInputEl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.ctrlKey && !submitBtnEl.disabled) {
-                submitAnswer();
+            if (response.status === 401) {
+                window.location.href = 'login.html';
+                return;
             }
-        });
-    }
-});
+            throw new Error('Failed to load topics');
+        }
 
-// Make functions globally available
-window.startInterview = startInterview;
-window.submitAnswer = submitAnswer;
-window.resetInterview = resetInterview;
-window.handleLogout = handleLogout;
+        const data = await response.json();
+        return data.topics;
+    } catch (error) {
+        console.error('Error loading topics:', error);
+        showError('Failed to load topics. Please try again.');
+        return [];
+    }
+}
+
+// Generate questions for a topic
+async function generateQuestions(topic, count = 5) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/questions?topic=${encodeURIComponent(topic)}&count=${count}`, {
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = 'login.html';
+                return;
+            }
+            throw new Error('Failed to generate questions');
+        }
+
+        const data = await response.json();
+        return data.questions;
+    } catch (error) {
+        console.error('Error generating questions:', error);
+        showError('Failed to generate questions. Please try again.');
+        return [];
+    }
+}
+
+// Display topics in the UI
+function displayTopics(topics) {
+    const topicsContainer = document.getElementById('topics-container');
+    if (!topicsContainer) return;
+
+    topicsContainer.innerHTML = '';
+
+    if (topics.length === 0) {
+        topicsContainer.innerHTML = '<p class="no-topics">No topics available</p>';
+        return;
+    }
+
+    topics.forEach(topic => {
+        const topicCard = document.createElement('div');
+        topicCard.className = 'topic-card';
+        topicCard.innerHTML = `
+            <h3>${topic}</h3>
+            <button class="btn btn-primary" onclick="startInterview('${topic}')">Start Interview</button>
+        `;
+        topicsContainer.appendChild(topicCard);
+    });
+}
+
+// Start interview for selected topic
+async function startInterview(topic) {
+    const loadingIndicator = document.getElementById('loading');
+    const questionsContainer = document.getElementById('questions-container');
+    const topicsSection = document.getElementById('topics-section');
+
+    // Show loading
+    if (loadingIndicator) loadingIndicator.style.display = 'block';
+    if (questionsContainer) questionsContainer.innerHTML = '';
+    if (topicsSection) topicsSection.style.display = 'none';
+
+    // Generate questions
+    const questions = await generateQuestions(topic);
+
+    // Hide loading
+    if (loadingIndicator) loadingIndicator.style.display = 'none';
+
+    if (questions.length === 0) {
+        showError('No questions available for this topic.');
+        if (topicsSection) topicsSection.style.display = 'block';
+        return;
+    }
+
+    // Display questions
+    displayQuestions(topic, questions);
+}
+
+// Display questions
+function displayQuestions(topic, questions) {
+    const questionsContainer = document.getElementById('questions-container');
+    const questionsSection = document.getElementById('questions-section');
+    const topicsSection = document.getElementById('topics-section');
+
+    if (!questionsContainer) return;
+
+    if (topicsSection) topicsSection.style.display = 'none';
+    if (questionsSection) questionsSection.style.display = 'block';
+
+    questionsContainer.innerHTML = `
+        <div class="questions-header">
+            <h2>Interview Questions: ${topic}</h2>
+            <button class="btn btn-secondary" onclick="goBackToTopics()">Back to Topics</button>
+        </div>
+        <div class="questions-list">
+            ${questions.map((q, index) => `
+                <div class="question-card">
+                    <div class="question-number">Question ${index + 1}</div>
+                    <div class="question-text">${q}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// Go back to topics
+function goBackToTopics() {
+    const topicsSection = document.getElementById('topics-section');
+    const questionsSection = document.getElementById('questions-section');
+
+    if (topicsSection) topicsSection.style.display = 'block';
+    if (questionsSection) questionsSection.style.display = 'none';
+}
+
+// Show error message
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    document.body.insertBefore(errorDiv, document.body.firstChild);
+
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 5000);
+}
+
+// Initialize interview page
+async function initInterviewPage() {
+    // Check authentication
+    const isAuthenticated = await requireAuth();
+    if (!isAuthenticated) return;
+
+    // Show loading indicator
+    const loadingIndicator = document.getElementById('loading');
+    if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+    // Load and display topics
+    const topics = await loadTopics();
+    
+    // Hide loading indicator
+    if (loadingIndicator) loadingIndicator.style.display = 'none';
+    
+    displayTopics(topics);
+}
+
+// Import requireAuth from auth.js (will be available if auth.js is loaded first)
+async function requireAuth() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return false;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/me`, {
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            return true;
+        } else {
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+            return false;
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+        return false;
+    }
+}
 
